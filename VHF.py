@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 # # Конвертирование бинарного файла в несколько сжатых HDF5 файлов
 HDF5_EVENTS_AMOUNT = 50
-
+FILES_NUM=2
 
 
 dtype = np.dtype(
@@ -213,13 +213,18 @@ def saveVectorBorders(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:n
     module=(arrayVec['x']**2+arrayVec['y']**2+arrayVec['z']**2)**0.5
     left=np.argwhere(module>0)[0][0]
     right=np.argwhere(time<time[left]+delta)[-1][-1]
-        
+    np.savetxt('inpTime.txt',time)
+    np.savetxt("inpVal.txt",module)    
     time=time[left-1:right]
     module=module[left:right]
         
-    plt.plot(time/1000,module)
+    plt.plot(time[:-1]/1000,module)
     plt.savefig(title+".png")
+    #plt.show()
+    np.savetxt("bordTime.txt",time[:-1])
+    np.savetxt("bordVal.txt",module)
     plt.clf()
+    return time[:-1]/1000,module
 def retFFT(step:float,x:np.ndarray,y:np.ndarray):
    vals=2*np.absolute(np.fft.rfft(y))/x.size
    freqs=np.fft.rfftfreq(x.size,d=step)
@@ -242,14 +247,18 @@ def saveFFT(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:np.ndarray,
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
     plt.title(title)
-    plt.plot([24,24],[0,vals.max()])
-    plt.plot([82,82],[0,vals.max()])  
+    #plt.plot([24,24],[0,vals.max()])
+    #plt.plot([82,82],[0,vals.max()])  
     
     
     plt.plot(freqs,abs(vals))
     plt.xscale("log")
     plt.savefig(title+" LogScaleAbsFFT.png")
+    np.savetxt("freqs.txt",freqs)
+    np.savetxt("vals.txt",vals)
+    #plt.show()
     plt.clf()
+    return freqs,abs(vals)
 def saveAmount(step:float,maxtime:float,hdf5filePath:str):
     data=[]
     with tables.open_file(hdf5filePath) as h5file:
@@ -259,50 +268,43 @@ def saveAmount(step:float,maxtime:float,hdf5filePath:str):
     
     outcome=np.zeros(int(maxtime/step))
     time=np.arange(0,int(maxtime/step)*step,int(step))
-    
+    integral=[]
     for tracks in data:
         for i in range(0,int(maxtime/step)):
             outcome[i]=outcome[i]+np.unique(tracks[(tracks['time']>i*step)*(tracks['time']<=(i+1)*step)]['id']).size
+            integral.append(np.unique(tracks['id']).size)
     outcome=outcome/HDF5_EVENTS_AMOUNT      
-        
+    print(sum(integral)/len(integral))
     plt.xlabel("time,"+r"$\mu s$")
     plt.ylabel("Total amount")
     plt.title('Amount of particles in RREA')
     plt.plot(time/1000,outcome)
     plt.savefig('impulse range'+".png")
+    np.savetxt('countTime.txt',time)
+    np.savetxt("countVal.txt",outcome)
+    #plt.show()
     plt.clf()
     return time,outcome
 def main():
+     time_step = 10
     
-     with tables.open_file("vhf_0.hdf5") as h5file:
-           
-        time_step = 10
+     signals = []
+     
+     for fileId in range(0,FILES_NUM):
+     
+       with tables.open_file("vhf_"+str(fileId)+".hdf5") as h5file:
+           for event in range(HDF5_EVENTS_AMOUNT*fileId,HDF5_EVENTS_AMOUNT*(fileId+1)):
+              tracks = process_event(h5file, np.array([0,0,-1000]), event_number=event, verbose=False)#500 m under RREA
+              signal_from_event, time = join_track_signal(tracks, time_step)
+              signals.append(signal_from_event)
+     signal, time = join_event_signal(signals, time_step)
+     titlePos="1 km under RREA"
+     saveVectorBorders("time,"+r"$\mu s$","Electric field, V/m","Electric field,"+titlePos,signal,time,1300)
+     saveAmount(time_step,3000,"vhf_0.hdf5")
+     saveFFT("frequency, MHz","Electric field, V/m","E field spectrum,"+titlePos,signal,time[:-1],time_step)
+       
+
     
-        signals = []
-        for event in range(HDF5_EVENTS_AMOUNT):
-            tracks = process_event(h5file, np.array([0,0,-1000]), event_number=event, verbose=False)
-            signal_from_event, time = join_track_signal(tracks, time_step)
-            signals.append(signal_from_event)
-        signal, time = join_event_signal(signals, time_step)
-        #titlePos="1 km under RREA"
-        #saveVectorBorders("time,"+r"$\mu s$","Electric field, V/m","Electric field,"+titlePos,signal,time[:-1],1300)
-        #saveFFT("frequency, MHz","Electric field, V/m","E field spectrum,"+titlePos,signal,time[:-1],time_step)
-        import power as pw
-        time=time[:-1]
-        signal=(signal['x']**2+signal['y']**2+signal['z']**2)**0.5
-        signal=signal/max(signal)
-        maxId=np.where(signal>0.01)[-1][-1]+100
-        signal=signal[:maxId]
-        time=time[:maxId]
-        data=np.fromfile("Electron.bin",dtype)
-        data=data[data["event"]<HDF5_EVENTS_AMOUNT]
-        timeAm,amount=pw.saveAmount(time_step,3500,data)
-        plt.xlabel("time,"+r"$\mu s$")
-        plt.title("normalized amount of partciles and electric field")
-        plt.plot(timeAm,amount/max(amount))
-        plt.plot(time,signal)
-        
-        plt.show()
      
      
     
