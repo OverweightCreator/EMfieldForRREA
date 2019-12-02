@@ -14,12 +14,14 @@ FILES_NUM=2
 
 
 dtype = np.dtype(
-    [('id', "i4"),
-     ('event', np.uint32),
+    [('event', "i4"),
+     ('id', "i4"),
      ('x', np.double),
      ('y', np.double),
      ('z', np.double),
-     ('time', np.double)])
+     ('time', np.double),
+     ('theta', np.double),
+     ('energy', np.double)])
 
 
 
@@ -298,9 +300,9 @@ def main():
               signal_from_event, time = join_track_signal(tracks, time_step)
               signals.append(signal_from_event)
      signal, time = join_event_signal(signals, time_step)
-     titlePos="1 km under RREA"
-     saveVectorBorders("time,"+r"$\mu s$","Electric field, V/m","Electric field,"+titlePos,signal,time,1300)
-     saveAmount(time_step,3000,"vhf_0.hdf5")
+     titlePos="500m under RREA"
+     saveVectorBorders("time,"+r"$\mu s$","Electric field, V/m","Electric field,"+titlePos,signal,time,2000)
+     saveAmount(time_step,4000,"vhf_0.hdf5")
      saveFFT("frequency, MHz","Electric field, V/m","E field spectrum,"+titlePos,signal,time[:-1],time_step)
        
 
