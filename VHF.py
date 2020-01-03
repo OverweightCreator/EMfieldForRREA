@@ -8,10 +8,12 @@ import numpy as np
 import tables
 import matplotlib.pyplot as plt
 
-# # Конвертирование бинарного файла в несколько сжатых HDF5 файлов
-HDF5_EVENTS_AMOUNT = 50
-FILES_NUM=2
+import logging
 
+# # Конвертирование бинарного файла в несколько сжатых HDF5 файлов
+HDF5_EVENTS_AMOUNT = 25
+FILES_NUM=4
+TOTAL_NUM=FILES_NUM*9
 
 dtype = np.dtype(
     [('event', "i4"),
@@ -22,6 +24,10 @@ dtype = np.dtype(
      ('time', np.double),
      ('theta', np.double),
      ('energy', np.double)])
+     
+from multiprocessing import Pool
+
+
 
 
 
@@ -207,34 +213,34 @@ def join_event_signal(events, time_step = 1):
         value["z"][:i] += event["z"]
     return value, grid
 
-def saveVectorBorders(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:np.ndarray,delta:float):
-    plt.ylabel(ylabel)
-    plt.xlabel(xlabel)
-    plt.title(title)
+def saveVectorBorders(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:np.ndarray,delta:float,folder:str):
+  #  plt.ylabel(ylabel)
+  #  plt.xlabel(xlabel)
+  #  plt.title(title)
     
     module=(arrayVec['x']**2+arrayVec['y']**2+arrayVec['z']**2)**0.5
     left=np.argwhere(module>0)[0][0]
     right=np.argwhere(time<time[left]+delta)[-1][-1]
-    np.savetxt('inpTime.txt',time)
-    np.savetxt("inpVal.txt",module)    
+    np.savetxt(folder+'/inpTime.txt',time)
+    np.savetxt(folder+"/inpVal.txt",module)    
     time=time[left-1:right]
     module=module[left:right]
         
-    plt.plot(time[:-1]/1000,module)
-    plt.savefig(title+".png")
+  #  plt.plot(time[:-1]/1000,module)
+  #  plt.savefig(title+".png")
     #plt.show()
-    np.savetxt("bordTime.txt",time[:-1])
-    np.savetxt("bordVal.txt",module)
-    plt.clf()
+    np.savetxt(folder+"/bordTime.txt",time[:-1])
+    np.savetxt(folder+"/bordVal.txt",module)
+  #  plt.clf()
     return time[:-1]/1000,module
 def retFFT(step:float,x:np.ndarray,y:np.ndarray):
    vals=2*np.absolute(np.fft.rfft(y))/x.size
    freqs=np.fft.rfftfreq(x.size,d=step)
    return vals,freqs
-def saveFFT(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:np.ndarray,step:float):                
-    plt.ylabel(ylabel)
-    plt.xlabel(xlabel)
-    plt.title(title)
+def saveFFT(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:np.ndarray,step:float,folder:str):                
+   # plt.ylabel(ylabel)
+  #  plt.xlabel(xlabel)
+ #   plt.title(title)
     module=(arrayVec['x']**2+arrayVec['y']**2+arrayVec['z']**2)**0.5
    
     left=np.argwhere(module>0)[0][0]       
@@ -246,22 +252,22 @@ def saveFFT(xlabel:str,ylabel:str,title:str,arrayVec:np.ndarray,time:np.ndarray,
    
     vals,freqs=retFFT(step,time,module)
     freqs=freqs*10**3
-    plt.ylabel(ylabel)
-    plt.xlabel(xlabel)
-    plt.title(title)
+   # plt.ylabel(ylabel)
+   # plt.xlabel(xlabel)
+  #  plt.title(title)
     #plt.plot([24,24],[0,vals.max()])
     #plt.plot([82,82],[0,vals.max()])  
     
     
-    plt.plot(freqs,abs(vals))
-    plt.xscale("log")
-    plt.savefig(title+" LogScaleAbsFFT.png")
-    np.savetxt("freqs.txt",freqs)
-    np.savetxt("vals.txt",vals)
+    #plt.plot(freqs,abs(vals))
+    #plt.xscale("log")
+   # plt.savefig(title+" LogScaleAbsFFT.png")
+    np.savetxt(folder+"/freqs.txt",freqs)
+    np.savetxt(folder+"/vals.txt",vals)
     #plt.show()
-    plt.clf()
+    #plt.clf()
     return freqs,abs(vals)
-def saveAmount(step:float,maxtime:float,hdf5filePath:str):
+def saveAmount(step:float,maxtime:float,hdf5filePath:str,folder:str):
     data=[]
     with tables.open_file(hdf5filePath) as h5file:
         for event in range(0,HDF5_EVENTS_AMOUNT):
@@ -277,43 +283,75 @@ def saveAmount(step:float,maxtime:float,hdf5filePath:str):
             integral.append(np.unique(tracks['id']).size)
     outcome=outcome/HDF5_EVENTS_AMOUNT      
     print(sum(integral)/len(integral))
-    plt.xlabel("time,"+r"$\mu s$")
-    plt.ylabel("Total amount")
-    plt.title('Amount of particles in RREA')
-    plt.plot(time/1000,outcome)
-    plt.savefig('impulse range'+".png")
-    np.savetxt('countTime.txt',time)
-    np.savetxt("countVal.txt",outcome)
+ #   plt.xlabel("time,"+r"$\mu s$")
+    #plt.ylabel("Total amount")
+   # plt.title('Amount of particles in RREA')
+   # plt.plot(time/1000,outcome)
+   # plt.savefig('impulse range'+".png")
+    np.savetxt(folder+'/countTime.txt',time)
+    np.savetxt(folder+"/countVal.txt",outcome)
     #plt.show()
-    plt.clf()
+    #plt.clf()
     return time,outcome
-def main():
+def main(folder:str,vec:np.ndarray):
      time_step = 10
-    
+     folder=folder#+"G"
      signals = []
      
-     for fileId in range(0,FILES_NUM):
+     print(folder,vec)
      
-       with tables.open_file("vhf_"+str(fileId)+".hdf5") as h5file:
-           for event in range(HDF5_EVENTS_AMOUNT*fileId,HDF5_EVENTS_AMOUNT*(fileId+1)):
-              tracks = process_event(h5file, np.array([0,0,-1000]), event_number=event, verbose=False)#500 m under RREA
-              signal_from_event, time = join_track_signal(tracks, time_step)
-              signals.append(signal_from_event)
+     for fileId in range(0,TOTAL_NUM):
+       try:
+           with tables.open_file("vhf_"+str(fileId)+".hdf5") as h5file:
+               for event in range(HDF5_EVENTS_AMOUNT*fileId,HDF5_EVENTS_AMOUNT*(fileId+1)):
+                  event=event%(HDF5_EVENTS_AMOUNT*FILES_NUM)
+                  print(folder,fileId,event)
+                  tracks = process_event(h5file, vec, event_number=event, verbose=False)
+                  signal_from_event, time = join_track_signal(tracks, time_step)
+                  signals.append(signal_from_event)
+       except FileNotFoundError:
+           print("File not found in main func"+str(fileId))
+           logging.info("File not found in main func "+str(fileId))
      signal, time = join_event_signal(signals, time_step)
      titlePos="500m under RREA"
-     saveVectorBorders("time,"+r"$\mu s$","Electric field, V/m","Electric field,"+titlePos,signal,time,2000)
-     saveAmount(time_step,4000,"vhf_0.hdf5")
-     saveFFT("frequency, MHz","Electric field, V/m","E field spectrum,"+titlePos,signal,time[:-1],time_step)
-       
+     saveVectorBorders("time,"+r"$\mu s$","Electric field, V/m","Electric field,"+titlePos,signal,time,1300,folder)
+     saveAmount(time_step,6000,"vhf_0.hdf5",folder)
+     saveFFT("frequency, MHz","Electric field, V/m","E field spectrum,"+titlePos,signal,time[:-1],time_step,folder)
 
     
      
      
     
 if __name__ == '__main__':
-    main()
-
-
+    
+    logging.basicConfig(filename="sample.log", level=logging.INFO)
+    data=np.fromfile("Electron.bin",dtype=dtype)
+    logging.info("Electron.bin")
+    for fileId in range(0,TOTAL_NUM):
+      try:
+         if fileId%FILES_NUM==0 and fileId>0:
+             data=np.fromfile("Electron"+str(int(fileId/5))+".bin",dtype=dtype)
+             print("Electron"+str(int(fileId/5))+".bin")
+             logging.info("Electron"+str(int(fileId/5))+".bin")
+         logging.info(str(fileId)+" "+str((HDF5_EVENTS_AMOUNT*fileId)%(HDF5_EVENTS_AMOUNT*FILES_NUM)))
+         create_file(data,fileId,(HDF5_EVENTS_AMOUNT*fileId)%(HDF5_EVENTS_AMOUNT*FILES_NUM))
+      except FileNotFoundError:
+          print("file not found "+str(int(fileId/5)))
+          logging.info("file not found "+str(int(fileId/5)))
+       
+              
+    
+    folders=["1km","2km","5km","x100m","x200m","x500m","x1km","1km1km"]
+    ranges=[np.array([0,0,-1000]),np.array([0,0,-2000]),np.array([0,0,-5000]),np.array([100,0,0]),np.array([200,0,0]),np.array([500,0,0]),np.array([1000,0,0]),np.array([1000,0,-1000])]
+    args=tuple(zip(folders, ranges))
+    
+    with Pool(5) as p:
+        print(p.starmap(main,args))
+    """
+    with tables.open_file("vhf_0.hdf5") as h5file:
+      print(h5file)
+      print(h5file.get_node("/event_108","tracks").read())
+    """
 
 
 
