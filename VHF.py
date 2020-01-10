@@ -211,7 +211,10 @@ def join_event_signal(events, time_step = 1):
         value["x"][:i] += event["x"]
         value["y"][:i] += event["y"]
         value["z"][:i] += event["z"]
-    return value/len(events), grid
+    value["x"]=value["x"]/len(events)
+    value["y"]=value["y"]/len(events)
+    value["z"]=value["z"]/len(events)
+    return value, grid
 
 def saveVectorBorders(arrayVec:np.ndarray,time:np.ndarray,delta:float,folder:str):
  
@@ -298,7 +301,7 @@ def main(folder:str,vec:np.ndarray):
      print(folder,vec)
      
      for fileId in range(0,TOTAL_NUM):
-           with tables.open_file("vhf_"+str(fileId)+".hdf5") as h5file:
+           with tables.open_file("vhfGurevich_"+str(fileId)+".hdf5") as h5file:
                for event in range(HDF5_EVENTS_AMOUNT*fileId,HDF5_EVENTS_AMOUNT*(fileId+1)):
                   event=event%(HDF5_EVENTS_AMOUNT*FILES_NUM)
                   tracks = process_event(h5file, vec, event_number=event, verbose=False)
@@ -318,7 +321,7 @@ if __name__ == '__main__':
     
     
     logging.basicConfig(filename="sample.log", level=logging.INFO)
-    
+    """
     data=np.fromfile("Electron.bin",dtype=dtype)
     logging.info("Electron.bin")
     for fileId in range(0,TOTAL_NUM):
@@ -329,8 +332,8 @@ if __name__ == '__main__':
              logging.info("Electron"+str(int(fileId/FILES_NUM))+".bin")
          logging.info(str(fileId)+" "+str((HDF5_EVENTS_AMOUNT*fileId)%(HDF5_EVENTS_AMOUNT*FILES_NUM)))
          create_file(data,fileId,(HDF5_EVENTS_AMOUNT*fileId)%(HDF5_EVENTS_AMOUNT*FILES_NUM))              
-    
-    folders=["1km","2km","5km","707mx707m","866mx500m","500mx866m"]
+    """
+    folders=["1kmG","2kmG","5kmG","707mx707mG","866mx500mG","500mx866mG"]
     ranges=[np.array([0,0,-1000]),np.array([0,0,-2000]),np.array([0,0,-5000]),np.array([707,0,-707]),np.array([500,0,-866]),np.array([866,0,-500])]
     args=tuple(zip(folders, ranges))
     
