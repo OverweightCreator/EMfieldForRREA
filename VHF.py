@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import logging
 
 
-HDF5_EVENTS_AMOUNT = 25
-FILES_NUM=4
+HDF5_EVENTS_AMOUNT = 20
+FILES_NUM=1
 TOTAL_NUM=FILES_NUM
 
 dtype = np.dtype(
@@ -21,9 +21,8 @@ dtype = np.dtype(
      ('x', np.double),
      ('y', np.double),
      ('z', np.double),
-     ('time', np.double),
-     ('theta', np.double),
-     ('energy', np.double)])
+     ('time', np.double)
+     ])
      
 from multiprocessing import Pool
 
@@ -39,8 +38,9 @@ from multiprocessing import Pool
 def create_file(data, index, start_event):
     current_event = start_event
     id_dtype = np.dtype([("id","i4"), ("count", "i")])
-    with tables.open_file("vhf_{}.hdf5".format(index), "w") as h5file:
+    with tables.open_file("vhfGurevich_{}.hdf5".format(index), "w") as h5file:
         for j in range(HDF5_EVENTS_AMOUNT):
+            print(current_event)
             group = h5file.create_group("/", "event_{}".format(current_event))
             event_data = data[data["event"] == current_event][["id", "x", "y", "z", "time"]]
             event_data = np.sort(event_data, order=["id", "time"])
@@ -259,39 +259,7 @@ def saveFFT(arrayVec:np.ndarray,time:np.ndarray,step:float,folder:str):
 
 
 
-"electrical current and number of particles"
-def getEvents(hdf5Path):
-    data=[]
-    with tables.open_file(hdf5Path) as h5file:
-        for event in range(0,HDF5_EVENTS_AMOUNT):
-            tracks = h5file.get_node("/event_{}".format(event), "tracks").read()
-            data.append(tracks)
-    return(data)  
-def currentEvents(time,data,dt):
-    out=[]
-    for event in data:
-      for trackId in np.unique(event['id']):
-        track=event[np.searchsorted(event['id'],trackId,side="left"):np.searchsorted(event['id'],trackId,side="right")]
-        currentTrackId=np.searchsorted(track["time"],time)
-        if currentTrackId<=track.size-1:
-          currentTrack=track[currentTrackId]
-          if abs(currentTrack['time']-time)<dt:
-              out.append(currentTrack) 
-    #return len(out)/HDF5_EVENTS_AMOUNT
-    return out
-    
-def getCurrentLocatedEvents(events,time,z,dz,dt):
-    eventsOnTime=currentEvents(time,events,dt)
-    out=[]
-    for track in eventsOnTime:
-        if abs(track['z']-z)<dz:
-          out.append(track)
-    return out
-def getCurrentN(events,time,z,dz,dt):
-    return len(getCurrentLocatedEvents(events,time,z,dz,dt))/HDF5_EVENTS_AMOUNT
-def getI(velocity,charge,dz,N):
-    return velocity*charge*N/dz
-"electrical current and number of particles - end of code"    
+   
     
     
 def main(folder:str,vec:np.ndarray):
@@ -321,34 +289,28 @@ if __name__ == '__main__':
     
     
     logging.basicConfig(filename="sample.log", level=logging.INFO)
-    """
-    data=np.fromfile("Electron.bin",dtype=dtype)
-    logging.info("Electron.bin")
+    
+    data=np.fromfile("ElectronGurevich.bin",dtype=dtype)
+    logging.info("ElectronGurevich.bin")
+    
     for fileId in range(0,TOTAL_NUM):
-      
          if fileId%FILES_NUM==0 and fileId>0:
-             data=np.fromfile("Electron"+str(int(fileId/FILES_NUM))+".bin",dtype=dtype)
-             print("Electron"+str(int(fileId/FILES_NUM))+".bin")
-             logging.info("Electron"+str(int(fileId/FILES_NUM))+".bin")
+             data=np.fromfile("ElectronGurevich"+str(int(fileId/FILES_NUM))+".bin",dtype=dtype)
+             print("ElectronGurevich"+str(int(fileId/FILES_NUM))+".bin")
+             logging.info("ElectronGurevich"+str(int(fileId/FILES_NUM))+".bin")
          logging.info(str(fileId)+" "+str((HDF5_EVENTS_AMOUNT*fileId)%(HDF5_EVENTS_AMOUNT*FILES_NUM)))
          create_file(data,fileId,(HDF5_EVENTS_AMOUNT*fileId)%(HDF5_EVENTS_AMOUNT*FILES_NUM))              
-    """
-    folders=["1kmG","2kmG","5kmG","707mx707mG","866mx500mG","500mx866mG"]
-    ranges=[np.array([0,0,-1000]),np.array([0,0,-2000]),np.array([0,0,-5000]),np.array([707,0,-707]),np.array([500,0,-866]),np.array([866,0,-500])]
+    
+    folders=["1kmG","2kmG","5kmG"]
+    ranges=[np.array([0,0,-1000]),np.array([0,0,-2000]),np.array([0,0,-5000])]
     args=tuple(zip(folders, ranges))
     
     with Pool(1) as p:
         print(p.starmap(main,args))
-        
     
-    """
-    data=getEvents("vhfGurevich_0.hdf5")
-    print(getCurrentN(data,3000,-300,5,5))
-    print(getCurrentN(data,3000,-300,10,5))
-    print(getCurrentN(data,3000,-300,2,5))
-    print(getCurrentN(data,3000,-300,15,5))
-    """
-
-
+   
+    #data=getEvents("vhfGurevich_0.hdf5")
+   # getDataCurrent(data,10,10,3000,300)
+    
 
 
