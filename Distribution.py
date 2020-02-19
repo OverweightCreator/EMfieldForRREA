@@ -21,14 +21,15 @@ def getTrack(event,trackid):
   return event[left:right]
 
 
-dt=50
+dt=100
 dz=10
 maxz=500
 minz=-500
 maxtime=15000
-result=np.zeros(    (np.arange(0,maxtime,dt).size , np.arange(maxz,minz,dz).size)   )
+result=np.zeros(    (np.arange(0,maxtime,dt).size , np.arange(minz,maxz,dz).size)   )
+print(np.arange(maxz,minz,dz))
 for time in np.arange(0,maxtime,dt):
-  for z in np.arange(maxz,minz,dz):
+  for z in np.arange(minz,maxz,dz):
     print(time,z)
     for eventId in np.unique(data['event']):
       event=getEvent(data,eventId)
